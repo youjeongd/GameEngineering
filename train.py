@@ -41,7 +41,14 @@ def get_parser(**parser_kwargs):
         "--resume_weights_only",
         action="store_true",
         help="only resume model weights",
+    ) # 검증용 추가
+
+    parser.add_argument(
+        "--validate_only",
+        action="store_true",
+        help="run validation only on the given checkpoint",
     )
+
     parser.add_argument(
         "-b",
         "--base",
@@ -280,7 +287,18 @@ if __name__ == "__main__":
     rank_zero_print(f"Setting learning rate to {model.learning_rate:.2e}")
 
     # run training loop
-    if opt.resume and not opt.resume_weights_only:
-        trainer.fit(model, data, ckpt_path=opt.resume)
+    # run training or validation loop
+    if opt.validate_only:
+        # 검증 전용 모드
+        if opt.resume is None:
+            raise ValueError(
+                "When using --validate_only, you must also provide --resume <ckpt_path>."
+            )
+        # ckpt_path를 넘기면 Lightning이 알아서 해당 가중치를 로드해서 validate만 수행
+        trainer.validate(model, datamodule=data, ckpt_path=opt.resume)
     else:
-        trainer.fit(model, data)
+        # 기존 학습 루프
+        if opt.resume and not opt.resume_weights_only:
+            trainer.fit(model, data, ckpt_path=opt.resume)
+        else:
+            trainer.fit(model, data)
