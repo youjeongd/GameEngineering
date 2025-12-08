@@ -246,6 +246,34 @@ class MVDiffusion(pl.LightningModule):
         # get input
         cond_imgs, target_imgs = self.prepare_batch_data(batch)
 
+        #loss 추가
+        B = cond_imgs.shape[0]
+
+        t = torch.randint(0, self.num_timesteps, size=(B,), device=self.device).long()
+
+        prompt_embeds = self.forward_vision_encoder(cond_imgs)
+        cond_latents = self.encode_condition_image(cond_imgs)
+
+        latents = self.encode_target_images(target_imgs)
+        noise = torch.randn_like(latents)
+        latents_noisy = self.train_scheduler.add_noise(latents, noise, t)
+
+        v_pred = self.forward_unet(latents_noisy, t, prompt_embeds, cond_latents)
+        v_target = self.get_v(latents, noise, t)
+
+        val_loss, _ = self.compute_loss(v_pred, v_target)
+        self.log(
+            "val/loss",
+            val_loss,
+            prog_bar=True,
+            logger=True,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        #기존 이미지
+
         images_pil = [v2.functional.to_pil_image(cond_imgs[i]) for i in range(cond_imgs.shape[0])]
 
         outputs = []
