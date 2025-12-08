@@ -35,10 +35,15 @@ class DataModuleFromConfig(pl.LightningDataModule):
         if test is not None:
             self.dataset_configs['test'] = test
     
-    def setup(self, stage):
+    def setup(self, stage=None):
 
-        if stage in ['fit']:
-            self.datasets = dict((k, instantiate_from_config(self.dataset_configs[k])) for k in self.dataset_configs)
+        if stage in ['fit', 'validate', None]:
+            if not hasattr(self, "datasets") or not self.datasets:
+                print (stage)
+                self.datasets = {
+                    k: instantiate_from_config(self.dataset_configs[k])
+                    for k in self.dataset_configs
+                }
         else:
             raise NotImplementedError
 
