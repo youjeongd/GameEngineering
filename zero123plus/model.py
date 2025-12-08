@@ -251,6 +251,10 @@ class MVDiffusion(pl.LightningModule):
 
         t = torch.randint(0, self.num_timesteps, size=(B,), device=self.device).long()
 
+        # RefOnlyNoisedUNet에 대해, 임시로 training=True 브랜치를 쓰게 만든다
+        was_training = self.unet.training
+        self.unet.train()
+
         prompt_embeds = self.forward_vision_encoder(cond_imgs)
         cond_latents = self.encode_condition_image(cond_imgs)
 
@@ -260,6 +264,10 @@ class MVDiffusion(pl.LightningModule):
 
         v_pred = self.forward_unet(latents_noisy, t, prompt_embeds, cond_latents)
         v_target = self.get_v(latents, noise, t)
+
+        # 원래 모드로 복구 (보통 False = eval)
+        if not was_training:
+            self.unet.eval()
 
         val_loss, _ = self.compute_loss(v_pred, v_target)
         self.log(
