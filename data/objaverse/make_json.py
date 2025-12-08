@@ -10,12 +10,16 @@ uids = sorted([
     if p.is_dir()
 ])
 
+data = {
+    "all": uids
+}
+
 print(f"총 {len(uids)}개 UID 발견")
 
 # 4) JSON 파일로 저장
-OUT_PATH = "C:/Users/yjdoh/OneDrive/Desktop/GameEngineering/data/objaverse/rendering_zero123plus/uid_list.json"   # 원하는 이름/경로로 변경 가능
+OUT_PATH = "C:/Users/yjdoh/OneDrive/Desktop/GameEngineering/data/objaverse/rendering_zero123plus/uid_list2.json"   # 원하는 이름/경로로 변경 가능
 
 with open(OUT_PATH, "w", encoding="utf-8") as f:
-    json.dump(uids, f, ensure_ascii=False, indent=2)
+    json.dump(data, f, ensure_ascii=False, indent=2)
 
 print(f"JSON 저장 완료: {OUT_PATH}")

@@ -93,8 +93,17 @@ class MVDiffusion(pl.LightningModule):
         self.register_buffer('sqrt_recip_alphas_cumprod', torch.sqrt(1. / alphas_cumprod).float())
         self.register_buffer('sqrt_recipm1_alphas_cumprod', torch.sqrt(1. / alphas_cumprod - 1).float())
     
+    def on_validation_start(self):
+        # LightningModule의 self.device를 그대로 쓰는 편이 깔끔
+        self.pipeline.to(self.device)
+
+        # images_val 폴더 없으면 만들어두기 (validate_only에서도 이미지 저장하려면)
+        if self.global_rank == 0:
+            os.makedirs(os.path.join(self.logdir, 'images_val'), exist_ok=True)
+
+        
     def on_fit_start(self):
-        device = torch.device(f'cuda:{self.global_rank}')
+        #device = torch.device(f'cuda:{self.global_rank}')
         self.pipeline.to(device)
         if self.global_rank == 0:
             os.makedirs(os.path.join(self.logdir, 'images'), exist_ok=True)
