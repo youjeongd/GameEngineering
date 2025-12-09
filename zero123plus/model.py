@@ -187,50 +187,90 @@ class MVDiffusion(pl.LightningModule):
         )
     
     def training_step(self, batch, batch_idx):
-        # get input
+        
+        # 1) 기존 입력 준비
         cond_imgs, target_imgs = self.prepare_batch_data(batch)
 
         # sample random timestep
         B = cond_imgs.shape[0]
-        
         t = torch.randint(0, self.num_timesteps, size=(B,)).long().to(self.device)
 
         # classifier-free guidance
         if np.random.rand() < self.drop_cond_prob:
-            prompt_embeds = self.pipeline._encode_prompt([""]*B, self.device, 1, False)
-            cond_latents = self.encode_condition_image(torch.zeros_like(cond_imgs))
+            prompt_embeds = self.pipeline._encode_prompt([""] * B, self.device, 1, False)
+            cond_latents  = self.encode_condition_image(torch.zeros_like(cond_imgs))
         else:
             prompt_embeds = self.forward_vision_encoder(cond_imgs)
-            cond_latents = self.encode_condition_image(cond_imgs)
+            cond_latents  = self.encode_condition_image(cond_imgs)
 
+        # target 멀티뷰 이미지 → latent로 인코딩
         latents = self.encode_target_images(target_imgs)
-        noise = torch.randn_like(latents)
+        noise   = torch.randn_like(latents)
         latents_noisy = self.train_scheduler.add_noise(latents, noise, t)
         
-        v_pred = self.forward_unet(latents_noisy, t, prompt_embeds, cond_latents)
+        # U-Net로 v 예측
+        v_pred   = self.forward_unet(latents_noisy, t, prompt_embeds, cond_latents)
         v_target = self.get_v(latents, noise, t)
 
-        loss, loss_dict = self.compute_loss(v_pred, v_target)
+        # 2) 기본 diffusion loss (latent-space MSE)
+        loss_diff, loss_dict = self.compute_loss(v_pred, v_target)
 
-        # logging
-        self.log_dict(loss_dict, prog_bar=True, logger=True, on_step=True, on_epoch=True)
-        self.log("global_step", self.global_step, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+        # 3) view reconstruction loss (image-space)
+        #   - 예측된 v_pred로 x0(latents_pred) 복원
+        latents_pred = self.predict_start_from_z_and_v(latents_noisy, t, v_pred)
+
+        #   - latent를 디코딩해서 예측 이미지를 얻음
+        latents_img = unscale_latents(latents_pred)
+        images_pred = unscale_image(
+            self.pipeline.vae.decode(
+                latents_img / self.pipeline.vae.config.scaling_factor,
+                return_dict=False
+            )[0]
+        )   # [-1, 1]
+        images_pred = (images_pred * 0.5 + 0.5).clamp(0, 1)  # [0, 1]
+
+        #   - target_imgs는 이미 [0,1]로 normalize되어 있음
+        loss_view = F.l1_loss(images_pred, target_imgs)
+
+        #   - 최종 loss에 가중치 λ를 곱해서 더함
+        lambda_view = 0.05   # 필요하면 config로 빼서 튜닝
+        total_loss = loss_diff + lambda_view * loss_view
+
+        # 4) logging (구성 요소까지 같이 로그)
+        loss_dict["train/loss_diff"]  = loss_diff
+        loss_dict["train/loss_view"]  = loss_view
+        loss_dict["train/loss_total"] = total_loss
+
+        self.log_dict(loss_dict, prog_bar=True, logger=True,
+                    on_step=True, on_epoch=True)
+        self.log("global_step", self.global_step, prog_bar=True, logger=True,
+                on_step=True, on_epoch=False)
         lr = self.optimizers().param_groups[0]['lr']
-        self.log('lr_abs', lr, prog_bar=True, logger=True, on_step=True, on_epoch=False)
+        self.log('lr_abs', lr, prog_bar=True, logger=True,
+                on_step=True, on_epoch=False)
 
+        # 5) 이미지 저장은 기존 로직 유지 (그대로 두거나 images_pred를 재사용해도 됨)
         if self.global_step % 500 == 0 and self.global_rank == 0:
             with torch.no_grad():
-                latents_pred = self.predict_start_from_z_and_v(latents_noisy, t, v_pred)
+                latents_pred_vis = self.predict_start_from_z_and_v(latents_noisy, t, v_pred)
 
-                latents = unscale_latents(latents_pred)
-                images = unscale_image(self.pipeline.vae.decode(latents / self.pipeline.vae.config.scaling_factor, return_dict=False)[0])   # [-1, 1]
-                images = (images * 0.5 + 0.5).clamp(0, 1)
-                images = torch.cat([target_imgs, images], dim=-2)
+                latents_vis = unscale_latents(latents_pred_vis)
+                images_vis = unscale_image(
+                    self.pipeline.vae.decode(
+                        latents_vis / self.pipeline.vae.config.scaling_factor,
+                        return_dict=False
+                    )[0]
+                )   # [-1, 1]
+                images_vis = (images_vis * 0.5 + 0.5).clamp(0, 1)
+                images_vis = torch.cat([target_imgs, images_vis], dim=-2)
 
-                grid = make_grid(images, nrow=images.shape[0], normalize=True, value_range=(0, 1))
-                save_image(grid, os.path.join(self.logdir, 'images', f'train_{self.global_step:07d}.png'))
+                grid = make_grid(images_vis, nrow=images_vis.shape[0],
+                                normalize=True, value_range=(0, 1))
+                save_image(grid, os.path.join(self.logdir, 'images',
+                                            f'train_{self.global_step:07d}.png'))
 
-        return loss
+        return total_loss
+
         
     def compute_loss(self, noise_pred, noise_gt):
         loss = F.mse_loss(noise_pred, noise_gt)
