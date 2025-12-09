@@ -120,7 +120,7 @@ class MVDiffusion(pl.LightningModule):
         cond_imgs = v2.functional.resize(cond_imgs, cond_size, interpolation=3, antialias=True).clamp(0, 1)
 
         target_imgs = batch['target_imgs']  # (B, 6, C, H, W)
-        target_imgs = v2.functional.resize(target_imgs, 320, interpolation=3, antialias=True).clamp(0, 1)
+        target_imgs = v2.functional.resize(target_imgs, 256, interpolation=3, antialias=True).clamp(0, 1)
         target_imgs = rearrange(target_imgs, 'b (x y) c h w -> b c (x h) (y w)', x=3, y=2)    # (B, C, 3H, 2W)
         target_imgs = target_imgs.to(self.device)
 
