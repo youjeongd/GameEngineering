@@ -104,7 +104,7 @@ class MVDiffusion(pl.LightningModule):
         
     def on_fit_start(self):
         #device = torch.device(f'cuda:{self.global_rank}')
-        self.pipeline.to(device)
+        self.pipeline.to(self.device)
         if self.global_rank == 0:
             os.makedirs(os.path.join(self.logdir, 'images'), exist_ok=True)
             os.makedirs(os.path.join(self.logdir, 'images_val'), exist_ok=True)
