@@ -66,6 +66,7 @@ class MVDiffusion(pl.LightningModule):
         self.train_scheduler = train_sched      # use ddpm scheduler during training
 
         self.unet = pipeline.unet
+        self.unet.enable_gradient_checkpointing() # 추가
 
         # validation output buffer
         self.validation_step_outputs = []
@@ -115,7 +116,7 @@ class MVDiffusion(pl.LightningModule):
         cond_imgs = cond_imgs.to(self.device)
 
         # random resize the condition image
-        cond_size = np.random.randint(128, 513)
+        cond_size = np.random.randint(128, 321) # 513에서 수정
         cond_imgs = v2.functional.resize(cond_imgs, cond_size, interpolation=3, antialias=True).clamp(0, 1)
 
         target_imgs = batch['target_imgs']  # (B, 6, C, H, W)
