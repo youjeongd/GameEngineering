@@ -16,7 +16,7 @@ data:
     train:
       target: src.data.objaverse_zero123plus.ObjaverseData
       params:
-        root_dir: data/objaverse
+        root_dir: /local_datasets/instantmesh/objaverse # 이샛기를 gpu 내부 경로로 변경하면 세라프 됨 g3에 있음
         meta_fname: uid_list.json
         image_dir: rendering_zero123plus
         validation: false
@@ -32,10 +32,19 @@ data:
 lightning:
   modelcheckpoint:
     params:
-      every_n_train_steps: 1000
-      save_top_k: -1
-      save_last: true
-  callbacks: {}
+      # 어떤 metric을 기준으로 best를 뽑을지
+      monitor: "val/loss"      # validation_step에서 self.log("val/loss", ...) 한 이름과 동일해야 함
+      mode: "min"              # loss는 낮을수록 좋음
+
+      save_top_k: 1            # 성능 가장 좋은 ckpt 1개만 유지
+      save_last: true          # 마지막 step 상태도 last.ckpt로 따로 유지
+
+      # step 단위로 무조건 저장하는 건 끄거나(=null) 크게 늘려도 됨
+      every_n_train_steps: null
+
+      # (선택) 파일 이름 포맷 바꾸고 싶으면
+      filename: "epoch={epoch:02d}-valloss={val/loss:.4f}"
+
 
   trainer:
     benchmark: true
