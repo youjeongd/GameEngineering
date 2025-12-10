@@ -97,7 +97,8 @@ device = torch.device('cuda')
 # load diffusion model
 print('Loading diffusion model ...')
 pipeline = DiffusionPipeline.from_pretrained(
-    "sudo-ai/zero123plus-v1.2", 
+    "/nas2/data/hkh7710/repos/yj_dir/GameEngineering/logs/zero123plus-finetune/checkpoints/epoch=21-valloss=val/loss=0.0144.ckpt",
+    repo_type="local",
     custom_pipeline="zero123plus",
     torch_dtype=torch.float16,
 )
