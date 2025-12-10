@@ -52,20 +52,32 @@ class MVDiffusion(pl.LightningModule):
 
         self.register_schedule()
 
-        # init modules
-        pipeline = DiffusionPipeline.from_pretrained(**stable_diffusion_config)
-        pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
-            pipeline.scheduler.config, timestep_spacing='trailing'
-        )
-        self.pipeline = pipeline
+        # init modules for hugging face
+        #pipeline = DiffusionPipeline.from_pretrained(**stable_diffusion_config)
+        #pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
+        #    pipeline.scheduler.config, timestep_spacing='trailing'
+        #)
+        #self.pipeline = pipeline
 
-        train_sched = DDPMScheduler.from_config(self.pipeline.scheduler.config)
-        if isinstance(self.pipeline.unet, UNet2DConditionModel):
-            self.pipeline.unet = RefOnlyNoisedUNet(self.pipeline.unet, train_sched, self.pipeline.scheduler)
+        #train_sched = DDPMScheduler.from_config(self.pipeline.scheduler.config)
+        #if isinstance(self.pipeline.unet, UNet2DConditionModel):
+        #    self.pipeline.unet = RefOnlyNoisedUNet(self.pipeline.unet, train_sched, self.pipeline.scheduler)
 
-        self.train_scheduler = train_sched      # use ddpm scheduler during training
+        #self.train_scheduler = train_sched      # use ddpm scheduler during training
 
-        self.unet = pipeline.unet
+        # 로컬 경로에서 모델 로드
+        ckpt_path = stable_diffusion_config['pretrained_model_name_or_path']
+        
+        # 모델 로드: .ckpt 파일을 torch.load로 불러오기
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
+
+        # 모델을 파이프라인에 맞게 로드 (예: UNet, VAE, 등)
+        self.pipeline = DiffusionPipeline.from_pretrained("stable-diffusion-v1-4-original", custom_pipeline="zero123plus")
+        
+        # 체크포인트 상태 dict를 모델에 로드
+        self.pipeline.load_state_dict(checkpoint['state_dict'])
+
+        self.unet = self.pipeline.unet
         # self.unet.enable_gradient_checkpointing() # 추가
 
         # validation output buffer
