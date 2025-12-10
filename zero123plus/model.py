@@ -53,7 +53,7 @@ class MVDiffusion(pl.LightningModule):
         self.register_schedule()
 
         # init modules
-        pipeline = DiffusionPipeline.from_pretrained(**stable_diffusion_config,repo_type="local")
+        pipeline = DiffusionPipeline.from_pretrained(**stable_diffusion_config,local_files_only=True)
         pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
             pipeline.scheduler.config, timestep_spacing='trailing'
         )

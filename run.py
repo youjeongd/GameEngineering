@@ -98,9 +98,9 @@ device = torch.device('cuda')
 print('Loading diffusion model ...')
 pipeline = DiffusionPipeline.from_pretrained(
     "/nas2/data/hkh7710/repos/yj_dir/GameEngineering/logs/zero123plus-finetune/checkpoints/epoch=21-valloss=val/loss=0.0144.ckpt",
-    repo_type="local",
     custom_pipeline="zero123plus",
     torch_dtype=torch.float16,
+    local_files_only=True 
 )
 pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
     pipeline.scheduler.config, timestep_spacing='trailing'
