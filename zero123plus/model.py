@@ -66,7 +66,7 @@ class MVDiffusion(pl.LightningModule):
         )
 
         # 2. 로컬 체크포인트 로드
-        model_path = "/nas2/data/hkh7710/repos/yj_dir/GameEngineering/logs/zero123plus-finetune/checkpoints/epoch=21-valloss=val/loss=0.0144.ckpt"
+        model_path = "/nas2/data/hkh7710/repos/yj_dir/GameEngineering/logs/zero123plus-finetune/checkpoints/epoch=epoch=21-valloss=val/loss=0.0144.ckpt"
         state_dict = torch.load(model_path)
 
         # 3. 로컬 체크포인트를 pipeline에 로드
