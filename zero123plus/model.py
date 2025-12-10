@@ -53,10 +53,30 @@ class MVDiffusion(pl.LightningModule):
         self.register_schedule()
 
         # init modules
-        pipeline = DiffusionPipeline.from_pretrained(**stable_diffusion_config,local_files_only=True)
+        #pipeline = DiffusionPipeline.from_pretrained(**stable_diffusion_config,repo_type = "local", local_files_only=True)
+        #pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
+        #    pipeline.scheduler.config, timestep_spacing='trailing'
+        #)
+
+        # 1. DiffusionPipeline 로드 - 로컬 ckpt 사용하게
+        pipeline = DiffusionPipeline.from_pretrained(
+            "sudo-ai/zero123plus-v1.2",  # 기본 모델 로드
+            custom_pipeline="zero123plus",
+            torch_dtype=torch.float16
+        )
+
+        # 2. 로컬 체크포인트 로드
+        model_path = "/nas2/data/hkh7710/repos/yj_dir/GameEngineering/logs/zero123plus-finetune/checkpoints/epoch=21-valloss=val/loss=0.0144.ckpt"
+        state_dict = torch.load(model_path)
+
+        # 3. 로컬 체크포인트를 pipeline에 로드
+        pipeline.unet.load_state_dict(state_dict, strict=False)
+
+        # 4. Scheduler 설정
         pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
             pipeline.scheduler.config, timestep_spacing='trailing'
         )
+
         self.pipeline = pipeline
 
         train_sched = DDPMScheduler.from_config(self.pipeline.scheduler.config)
