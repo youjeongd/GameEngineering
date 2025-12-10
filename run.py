@@ -106,6 +106,8 @@ pipeline.scheduler = EulerAncestralDiscreteScheduler.from_config(
     pipeline.scheduler.config, timestep_spacing='trailing'
 )
 
+print('Loaded diffusion model from local path in run.py')
+
 # load custom white-background UNet
 print('Loading custom white-background unet ...')
 if os.path.exists(infer_config.unet_path):
