@@ -5,8 +5,7 @@ model:
     drop_cond_prob: 0.1
 
     stable_diffusion_config:
-      #pretrained_model_name_or_path: sudo-ai/zero123plus-v1.2
-      pretrained_model_name_or_path: /nas2/data/hkh7710/repos/yj_dir/GameEngineering/logs/zero123plus-finetune/checkpoints/epoch=epoch=21-valloss=val/loss=0.0144.ckpt
+      pretrained_model_name_or_path: sudo-ai/zero123plus-v1.2
       custom_pipeline: ./zero123plus
 
 data:
